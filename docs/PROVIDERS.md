@@ -5,6 +5,7 @@
 
 | Provider | 目标能力 | 调研线索 | 优先级 | 状态 |
 |---|---|---|---|---|
+| Demo | 模拟窗口及余额 | 本地内存，无网络或凭据；名称和数值为虚构示例 | M0 | 实现（非真实 Provider） |
 | Kimi Code | 套餐窗口/剩余/恢复 | coding usages；具体 host/auth 待验证 | P0 | Planned |
 | MiniMax | Token Plan quota | token_plan/remains；区分区域和计划 | P0 | Planned |
 | GLM Coding | 周期和 MCP 配额 | monitor usage quota/limit；认证待验证 | P0 | Planned |
@@ -17,6 +18,8 @@
 | Custom | 用户声明的 JSON 读取契约 | 后续 allowlist、schema 与 SSRF 防护 | P2 | Planned |
 
 不假定每个账户具有 5h / weekly 两个窗口。Kimi 等套餐规则可能随版本/地区/新老计划变化。实际响应和官方语义优先。
+
+当前 Demo 使用与桌面窗口相同的 Rust DTO，并以字符串传输计数和金额。同步 trait 是离线阶段的最小接口，真实适配前需要补充异步、取消、超时、认证与验证能力，见 [ADR-0002](adr/0002-m0-demo-contract.md)。
 
 ## 认证与权限
 首选正式 quota/balance API、明确支持的 OAuth、官方 CLI 暴露的只读数据；其次是平台允许的实验性接口（用户主动启用）。不自动抓浏览器 cookies、不模拟身份、不绕过验证码、反自动化或访问限制。官方 CLI 数据来源也需检查其许可和文件权限，不默认扫描所有本地凭据。每个适配器的能力状态：planned / verified / experimental / unsupported / disabled；推理 capability 独立记录，默认 denied。没有证据即 unknown/unsupported，不猜测。

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "desktop",
+  "description": "Local windows only; application commands are implemented in Rust.",
+  "windows": ["main", "panel"],
+  "permissions": ["core:event:default"]
+}
