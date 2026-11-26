@@ -6,7 +6,7 @@
 
 [English](README.md) · [开发路线](docs/ROADMAP.md) · [系统架构](docs/ARCHITECTURE.md) · [Agent 开发规范](AGENTS.md)
 
-> 当前为设计与仓库初始化阶段，尚未实现桌面应用、真实厂商适配或安装包。以下均为计划功能。
+> 当前为开发预览：已有 Windows 实测的离线 Demo、主窗口和托盘面板；没有真实厂商适配或发布安装包。macOS 尚未实测。下列其他功能仍为计划。
 
 ## 为什么做这个项目
 
@@ -33,7 +33,23 @@
 
 ## 开始开发
 
-请首先阅读 [AGENTS.md](AGENTS.md)、[MVP 需求](docs/MVP.md) 和 [实施任务](docs/IMPLEMENTATION.md)。M0 建立 Rust Cargo Workspace + Tauri 2 + React + TypeScript + pnpm 工作区。按照 [Tauri 系统依赖说明](https://v2.tauri.app/start/prerequisites/) 安装环境；脚手架完成后补充经过验证的构建命令。
+请首先阅读 [AGENTS.md](AGENTS.md)、[MVP 需求](docs/MVP.md) 和 [实施任务](docs/IMPLEMENTATION.md)，按 [Tauri 系统依赖说明](https://v2.tauri.app/start/prerequisites/) 安装 Rust、平台编译工具及 WebView。以下命令在 Windows build 26300、Rust 1.100.0、Node 24.22.1、pnpm 10.18.3 上执行通过：
+
+```powershell
+pnpm install --frozen-lockfile
+pnpm tauri dev
+pnpm tauri build --no-bundle
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+pnpm format:check
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+开发时从托盘打开快捷面板，关闭主窗口只会隐藏；通过托盘菜单 Quit 退出。Demo 数据完全虚构、不使用 Key；当前仅英文并跟随系统主题。领域 DTO 变更后运行 `cargo run -p prism-core --example export_types` 并提交生成结果。平台验证和待办详见 [实施清单](docs/IMPLEMENTATION.md)。
 
 ## 文档导航
 

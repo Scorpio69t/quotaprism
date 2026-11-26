@@ -1,6 +1,6 @@
 # 开发实施清单（供 Coding Agent 执行）
 
-状态：全部待开发。每项以验收为完成标准；不以创建文件数衡量。先完成 M0 垂直切片，再接真实接口。Agent 每次实现一个任务组，报告实际验证结果；遇到证据缺失的 Provider 标记 blocked，转其他候选。
+状态：M0 离线 Demo 垂直切片已实现，Windows 基础交互已实测；macOS 与完整 M0 仍待验收。每项以验收为完成标准；不以创建文件数衡量。先完成 M0 垂直切片，再接真实接口。遇到证据缺失的 Provider 标记 blocked，转其他候选。
 
 ## M0：工程基座与 Demo 垂直切片
 | ID | 工作 | 依赖 | 验收 |
@@ -12,6 +12,14 @@
 | QP-005 | CI 基线、lint/test/typecheck、Windows/macOS 构建矩阵 | 001 | PR 运行真实命令；不依赖真实 Key；未实测 OS 标记待验 |
 
 M0 门槛：可运行的 Demo + 测试 + 文档真实构建命令。不要直接开发 6 家 Provider 或未来功能。
+
+### QP-001–003 本次验证（2026-11-26）
+
+- Windows build 26300、Rust 1.100.0 MSVC、Node 24.22.1、pnpm 10.18.3、WebView2 已安装。`pnpm install`、`pnpm tauri dev` 与 `pnpm tauri build --no-bundle` 成功，开发窗口和生产窗口均显示 Demo。
+- `cargo fmt --all -- --check`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace` 通过（Rust 4 个测试）；`pnpm format:check`、`pnpm lint`、`pnpm typecheck`、`pnpm test` 通过（UI 3 个测试）；`pnpm build` 通过。
+- Windows UI Automation 实测托盘图标、打开面板、Esc、固定/失焦、打开主窗口、主窗口关闭后进程驻留、第二实例唤醒主窗口、托盘菜单退出。已检查生产窗口截图；未进行离线网络断连抓包。
+- 未在 macOS 编译或运行；未完成多显示器、各方向任务栏、DPI 矩阵、屏幕阅读器、安装/卸载及性能测量。定位单测不替代 OS 实测。QP-003 跨平台验收仍未完成。
+- QP-004 尚未完成：目前为英文界面并跟随系统明暗主题，缺少中英文切换、手动主题、完整状态与无障碍矩阵；QP-005 CI 尚未实现。没有真实 Provider、账户、凭据、缓存或通知。
 
 ## M1：可靠核心
 | ID | 工作 | 依赖 | 验收 |

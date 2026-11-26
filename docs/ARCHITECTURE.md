@@ -1,5 +1,7 @@
 # 系统架构与接口契约
 
+> M0 实现状态：现有 `prism-core`、`prism-providers` 与 Tauri 桌面应用仅实现离线 Demo 和本文契约的展示子集。完整账户、认证、异步 Provider、持久化和调度仍为后续设计；详见 [ADR-0002](adr/0002-m0-demo-contract.md)。
+
 ## 技术选型
 Rust stable + Cargo Workspace；Tauri 2 + React + TypeScript + Vite + pnpm；Tailwind + shadcn/ui（按需组件）+ Lucide；Zustand 用于 UI 状态，服务端状态采用简单查询缓存或 TanStack Query（M0 实测决定）；Tokio、Reqwest、Serde、rusqlite、keyring、tracing、thiserror、uuid、chrono 或 time（二选一）。版本在 M0 依据兼容性锁定，禁止追逐无理由升级。图表优先轻量 SVG/Recharts，未实现历史前不引入大图表库。
 

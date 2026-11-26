@@ -3,6 +3,7 @@
 node_modules/
 **/dist/
 **/coverage/
+apps/desktop/src-tauri/gen/
 *.log
 .env
 .env.*

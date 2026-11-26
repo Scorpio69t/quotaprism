@@ -6,9 +6,9 @@ A beautiful, local-first AI quota and subscription monitor, designed to evolve i
 
 [简体中文](README.zh-CN.md) · [Roadmap](docs/ROADMAP.md) · [Architecture](docs/ARCHITECTURE.md) · [Agent instructions](AGENTS.md)
 
-![Status](https://img.shields.io/badge/status-design%20%2F%20pre--alpha-blue) ![License](https://img.shields.io/badge/license-MIT-green) ![Stack](https://img.shields.io/badge/stack-Rust%20%2B%20Tauri%202-orange)
+![Status](https://img.shields.io/badge/status-demo%20%2F%20pre--alpha-blue) ![License](https://img.shields.io/badge/license-MIT-green) ![Stack](https://img.shields.io/badge/stack-Rust%20%2B%20Tauri%202-orange)
 
-> **Project status:** specification and repository bootstrap. No runnable desktop application, live provider integrations or binaries have been implemented yet. All features below are planned unless explicitly marked complete.
+> **Project status:** offline desktop demo with Windows smoke-tested tray and dashboard. No live provider integrations or released installers; macOS remains untested. Other features below are planned.
 
 ## Why QuotaPrism?
 
@@ -36,7 +36,23 @@ A monitor is not a gateway, and a subscription is not automatically an API entit
 
 ## Development
 
-This is a documentation-first repository. Start with [AGENTS.md](AGENTS.md), then [MVP specification](docs/MVP.md) and [implementation plan](docs/IMPLEMENTATION.md). Bootstrap Rust stable, Tauri 2, React, TypeScript and pnpm in milestone M0. Follow the official [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for your OS. Build commands will be added once the workspace exists; there is intentionally no fake install command or placeholder CI build.
+Start with [AGENTS.md](AGENTS.md), the [MVP specification](docs/MVP.md) and [implementation plan](docs/IMPLEMENTATION.md). Install the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/), Rust, Node and pnpm. The following were run on Windows (build 26300; Rust 1.100.0, Node 24.22.1, pnpm 10.18.3):
+
+```powershell
+pnpm install --frozen-lockfile
+pnpm tauri dev
+pnpm tauri build --no-bundle
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+pnpm format:check
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+The demo contains fictional data and needs no credentials. Close the dashboard to hide it; quit from the tray menu. The current UI is English and follows the system theme. After changing Rust DTOs, run `cargo run -p prism-core --example export_types`; the Rust tests check the generated file. Platform limitations are recorded in the [implementation plan](docs/IMPLEMENTATION.md).
 
 ## Architecture & documentation
 
