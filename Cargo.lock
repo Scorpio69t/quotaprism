@@ -2825,6 +2825,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "prism-scheduler"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+]
+
+[[package]]
 name = "prism-security"
 version = "0.1.0"
 dependencies = [

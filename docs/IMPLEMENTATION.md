@@ -49,7 +49,7 @@ M0 门槛：可运行的 Demo + 测试 + 文档真实构建命令。不要直接
 | QP-010 | SQLite schema、事务迁移、账户及最近快照仓储 | 002 | 临时数据库测试，重启读取、迁移失败回滚（已实现） |
 | QP-011 | OS keychain、secret ref 与 mock backend | 002 | 真实目标 OS smoke test；失败不落明文；添加/删除/更新恢复（进行中） |
 | QP-012 | 账户应用用例、Provider registry、typed IPC | 010,011 | 多账户隔离；无返回 secret；删除一致性；设置持久化（进行中） |
-| QP-013 | Scheduler、时钟注入、singleflight、并发与退避 | 012 | fake clock 测试 401/429/超时/取消；睡眠恢复限流 |
+| QP-013 | Scheduler、时钟注入、singleflight、并发与退避 | 012 | fake clock 测试 401/429/超时/取消；睡眠恢复限流（进行中） |
 | QP-014 | 缓存与错误 UX、状态事件、通知去重 | 013 | 保留上次成功数据；通知不使用过期快照；事件乱序处理 |
 | QP-015 | HTTP 共用层、安全与脱敏诊断 | 011,013 | redirect、body limit、TLS、敏感头日志测试 |
 
@@ -73,6 +73,13 @@ M1 门槛：Mock provider 与本地 fixture 能完成全部主要流程；失败
 - SQLite v2 增加 provider、enabled、credentialRef 和创建时间；v1→v2 使用事务迁移并保持用户账户别名。
 - Tauri 增加 provider/账户查询、添加、更新、删除 typed command；前端生成 DTO 包含统一账户与输入契约，不返回原始 secret。
 - 已覆盖账户更新隔离、删除一致性、Demo 刷新别名保留和关联 secret 删除；设置持久化、真实刷新、认证表单和跨窗口事件仍未实现。
+
+### QP-013 调度器切片（2026-11-27）
+
+- 新增独立 `prism-scheduler` crate：可注入时钟、每账户 cold-down、同账户 singleflight、跨账户并发和指数退避。
+- 取消、认证、权限、429、网络、超时、schema、不支持、存储和未知错误具有独立状态语义；取消不会执行刷新动作。
+- Fake clock 测试覆盖 401 无重试、429 Retry-After、超时指数退避、取消和同/不同账户并发。
+- 当前为同步内存调度核心，不建立后台 Tokio 任务、持久化 refresh_state、睡眠恢复或真实 HTTP 请求。
 
 ## M2：真实 Provider 与 v0.1 发布
 | ID | 工作 | 依赖 | 验收 |
