@@ -5,6 +5,7 @@ members = [
     "crates/prism-storage",
     "crates/prism-security",
     "crates/prism-app",
+    "crates/prism-scheduler",
     "apps/desktop/src-tauri",
 ]
 resolver = "2"
