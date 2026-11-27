@@ -47,7 +47,7 @@ M0 门槛：可运行的 Demo + 测试 + 文档真实构建命令。不要直接
 | ID | 工作 | 依赖 | 验收 |
 |---|---|---|---|
 | QP-010 | SQLite schema、事务迁移、账户及最近快照仓储 | 002 | 临时数据库测试，重启读取、迁移失败回滚（进行中） |
-| QP-011 | OS keychain、secret ref 与 mock backend | 002 | 真实目标 OS smoke test；失败不落明文；添加/删除/更新恢复 |
+| QP-011 | OS keychain、secret ref 与 mock backend | 002 | 真实目标 OS smoke test；失败不落明文；添加/删除/更新恢复（进行中） |
 | QP-012 | 账户应用用例、Provider registry、typed IPC | 010,011 | 多账户隔离；无返回 secret；删除一致性；设置持久化 |
 | QP-013 | Scheduler、时钟注入、singleflight、并发与退避 | 012 | fake clock 测试 401/429/超时/取消；睡眠恢复限流 |
 | QP-014 | 缓存与错误 UX、状态事件、通知去重 | 013 | 保留上次成功数据；通知不使用过期快照；事件乱序处理 |
@@ -60,6 +60,12 @@ M1 门槛：Mock provider 与本地 fixture 能完成全部主要流程；失败
 - 新增独立 `prism-storage` crate：文件/内存数据库、外键、WAL、事务迁移和账户与最近快照仓储。
 - 实现账户快照统一事务写入、最近快照读取、账户列表、账户删除及迁移失败回滚；不保存凭据或原始 HTTP 响应。
 - 当前临时数据库测试覆盖重启读取、账户删除、迁移失败回滚；目标 OS 文件权限、WAL恢复和并发仍待验收。
+
+### QP-011 凭据存储切片（2026-11-27）
+
+- 新增独立 `prism-security` crate：受格式校验的 `SecretRef`、脱敏 `SecretValue`、`SecretStore` trait、内存 mock 和 `keyring` OS 后端。
+- 移除真实凭据的持久化风险：SQLite 不保存 secret，DTO 和日志不得携带原始值；mock 测试覆盖添加、更新、读取、删除、缺失及 Debug 脱敏。
+- 当前未执行真实 OS Keychain/Credential Manager 写入 smoke test；不得把 mock 成功当作目标 OS 验证。
 
 ## M2：真实 Provider 与 v0.1 发布
 | ID | 工作 | 依赖 | 验收 |
