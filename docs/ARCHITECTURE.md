@@ -1,6 +1,6 @@
 # 系统架构与接口契约
 
-> 实现状态：M0 离线 Demo、托盘和面板已实现；M1 已新增 SQLite 仓储、密钥端口、账户应用服务、静态 Provider registry 与同步刷新调度核心。完整认证、异步 Provider、持久化 refresh state 和真实刷新仍为后续设计；详见 [ADR-0002](adr/0002-m0-demo-contract.md)、[ADR-0003](adr/0003-m1-sqlite-storage.md)、[ADR-0004](adr/0004-m1-secret-store.md)、[ADR-0005](adr/0005-m1-account-service.md) 与 [ADR-0006](adr/0006-m1-refresh-scheduler.md)。
+> 实现状态：M0 离线 Demo、托盘和面板已实现；M1 已新增 SQLite 仓储、密钥端口、账户应用服务、静态 Provider registry、同步刷新调度核心和进程内缓存/状态事件。完整认证、异步 Provider、持久化 refresh state 和真实刷新仍为后续设计；详见 [ADR-0002](adr/0002-m0-demo-contract.md)、[ADR-0003](adr/0003-m1-sqlite-storage.md)、[ADR-0004](adr/0004-m1-secret-store.md)、[ADR-0005](adr/0005-m1-account-service.md)、[ADR-0006](adr/0006-m1-refresh-scheduler.md) 与 [ADR-0007](adr/0007-m1-cache-state-events.md)。
 
 ## 技术选型
 Rust stable + Cargo Workspace；Tauri 2 + React + TypeScript + Vite + pnpm；Tailwind + shadcn/ui（按需组件）+ Lucide；Zustand 用于 UI 状态，服务端状态采用简单查询缓存或 TanStack Query（M0 实测决定）；Tokio、Reqwest、Serde、rusqlite、keyring、tracing、thiserror、uuid、chrono 或 time（二选一）。版本在 M0 依据兼容性锁定，禁止追逐无理由升级。图表优先轻量 SVG/Recharts，未实现历史前不引入大图表库。

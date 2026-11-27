@@ -14,3 +14,4 @@ export type AddAccountInput = { providerId: string, alias: string, };
 export type UpdateAccountInput = { alias: string | null, enabled: boolean | null, };
 export type ProviderMetadata = { id: string, name: string, description: string, demo: boolean, };
 export type ProviderCapabilities = { quotaRead: boolean, };
+export type RefreshStatus = { inFlight: boolean, lastAttemptAt: string | null, lastSuccessAt: string | null, retryAfter: string | null, error: PublicError | null, stale: boolean, revision: bigint, };

@@ -14,7 +14,18 @@ import type { Overview } from "./generated/types";
 vi.mock("./ipc", () => ({
   ipc: {
     getOverview: vi.fn(),
+    getRefreshStatus: vi.fn().mockResolvedValue({
+      inFlight: false,
+      lastAttemptAt: null,
+      lastSuccessAt: null,
+      retryAfter: null,
+      error: null,
+      stale: false,
+      revision: 0n,
+    }),
     onRefresh: vi.fn(),
+    onRefreshStatus: vi.fn().mockResolvedValue(() => {}),
+    onAccountsChanged: vi.fn().mockResolvedValue(() => {}),
     refresh: vi.fn(),
     hidePanel: vi.fn(),
     showDashboard: vi.fn(),
@@ -280,6 +291,46 @@ test("shows an actionable empty demo state", async () => {
   await waitFor(() =>
     expect(ipc.getOverview).toHaveBeenCalledTimes(callCount + 1),
   );
+});
+
+test("shows stale cached data with its refresh error", async () => {
+  vi.mocked(ipc.getRefreshStatus).mockResolvedValue({
+    inFlight: false,
+    lastAttemptAt: "2026-11-27T02:00:00Z",
+    lastSuccessAt: "2026-11-27T01:59:00Z",
+    retryAfter: null,
+    error: {
+      code: "network_error",
+      message: "Connection unavailable",
+    },
+    stale: true,
+    revision: 2n,
+  });
+  vi.mocked(ipc.getOverview).mockResolvedValue({
+    demo: true,
+    accounts: [
+      {
+        accountId: "demo-1",
+        providerName: "Example",
+        alias: "Cached",
+        snapshot: {
+          observedAt: "2026-11-27T01:59:00Z",
+          source: "demo",
+          windows: [],
+          balances: [],
+        },
+      },
+    ],
+  });
+  vi.mocked(ipc.onRefresh).mockResolvedValue(() => {});
+  render(<App />);
+
+  expect(await screen.findByText("Example")).toBeInTheDocument();
+  expect(
+    screen.getByText(
+      /Showing the last successful data.*Connection unavailable/,
+    ),
+  ).toBeInTheDocument();
 });
 
 test("reports IPC errors rather than inventing demo data", async () => {

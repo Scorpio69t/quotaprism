@@ -73,11 +73,23 @@ pub struct Balance {
     pub currency: String,
 }
 
-#[derive(Clone, Debug, Serialize, TS)]
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct PublicError {
     pub code: String,
     pub message: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct RefreshStatus {
+    pub in_flight: bool,
+    pub last_attempt_at: Option<DateTime<Utc>>,
+    pub last_success_at: Option<DateTime<Utc>>,
+    pub retry_after: Option<DateTime<Utc>>,
+    pub error: Option<PublicError>,
+    pub stale: bool,
+    pub revision: u64,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
@@ -189,6 +201,7 @@ pub fn typescript_definitions() -> String {
         UpdateAccountInput::decl(&config),
         ProviderMetadata::decl(&config),
         ProviderCapabilities::decl(&config),
+        RefreshStatus::decl(&config),
     ]
     .into_iter()
     .map(|definition| format!("export {definition}\n"))
