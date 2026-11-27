@@ -24,6 +24,8 @@ vi.mock("./ipc", () => ({
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  delete document.documentElement.dataset.theme;
+  document.documentElement.lang = "en";
 });
 
 test("shows unknown quotas separately from zero and displays balance without a percentage", async () => {
@@ -222,6 +224,43 @@ test("switches quota view without inventing used values, sorts known limits firs
     screen.getByRole("button", { name: "Hide details for Working, B" }),
   ).toHaveAttribute("aria-expanded", "true");
   expect(screen.getByText("Rolling · 18000 seconds")).toBeVisible();
+});
+
+test("switches language and applies the selected theme", async () => {
+  const data: Overview = {
+    demo: true,
+    accounts: [
+      {
+        accountId: "demo-1",
+        providerName: "示例",
+        alias: "测试",
+        snapshot: {
+          observedAt: "2026-01-01T00:00:00Z",
+          source: "demo",
+          balances: [],
+          windows: [],
+        },
+      },
+    ],
+  };
+  vi.mocked(ipc.getOverview).mockResolvedValue(data);
+  vi.mocked(ipc.onRefresh).mockResolvedValue(() => {});
+  render(<App />);
+  await screen.findByText("示例");
+
+  fireEvent.change(screen.getByRole("combobox", { name: "Language" }), {
+    target: { value: "zh" },
+  });
+  expect(
+    screen.getByRole("heading", { name: "更清晰地查看额度。" }),
+  ).toBeInTheDocument();
+  expect(screen.getByText("把所有限制集中在一处")).toBeInTheDocument();
+  expect(document.documentElement.lang).toBe("zh-CN");
+
+  fireEvent.change(screen.getByRole("combobox", { name: "主题" }), {
+    target: { value: "light" },
+  });
+  expect(document.documentElement).toHaveAttribute("data-theme", "light");
 });
 
 test("reports IPC errors rather than inventing demo data", async () => {
