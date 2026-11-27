@@ -39,6 +39,7 @@ M0 门槛：可运行的 Demo + 测试 + 文档真实构建命令。不要直接
 - 新增最小只读 CI，针对 `main` 推送和 Pull Request 验证 Windows 与 macOS。每个平台执行依赖安装、Rust 格式/Clippy/测试、前端格式/lint/typecheck/测试及 Tauri 无安装包构建。
 - CI 不使用真实密钥、不构建签名安装包、不执行网络抓包或发布上传；实际 macOS runner 结果仍需首次 CI 运行确认。
 - 生成 DTO 契约测试会归一化 CRLF/LF 换行，避免 Windows checkout 与生成文件的换行差异造成假失败。
+- 仓库启用 LF Git 行尾约束及 Prettier `endOfLine: lf`，避免 Windows checkout 导致格式检查误报。
 
 ## M1：可靠核心
 | ID | 工作 | 依赖 | 验收 |
