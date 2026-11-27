@@ -1,12 +1,28 @@
 use chrono::{Duration, Utc};
 use prism_core::{
-    quota_percent, AccountSnapshot, Balance, Overview, Period, PublicError, QuotaProvider,
-    QuotaSnapshot, QuotaWindow, SourceKind, Unit,
+    quota_percent, AccountSnapshot, Balance, Overview, Period, ProviderCapabilities,
+    ProviderMetadata, ProviderSummary, PublicError, QuotaProvider, QuotaSnapshot, QuotaWindow,
+    SourceKind, Unit,
 };
+use std::collections::HashMap;
+use std::sync::Arc;
 
 pub struct DemoProvider;
 
 impl QuotaProvider for DemoProvider {
+    fn metadata(&self) -> ProviderMetadata {
+        ProviderMetadata {
+            id: "demo".into(),
+            name: "Offline Demo".into(),
+            description: "Simulated local quota data".into(),
+            demo: true,
+        }
+    }
+
+    fn capabilities(&self) -> ProviderCapabilities {
+        ProviderCapabilities { quota_read: true }
+    }
+
     fn fetch_overview(&self) -> Result<Overview, PublicError> {
         let now = Utc::now();
         let account = |id: &str, name: &str, alias: &str, windows, balances| AccountSnapshot {
@@ -103,9 +119,69 @@ impl QuotaProvider for DemoProvider {
     }
 }
 
+pub struct ProviderRegistry {
+    providers: HashMap<String, Arc<dyn QuotaProvider>>,
+}
+
+impl ProviderRegistry {
+    pub fn demo() -> Self {
+        let provider = Arc::new(DemoProvider);
+        let mut providers = HashMap::new();
+        providers.insert(
+            provider.metadata().id.clone(),
+            provider as Arc<dyn QuotaProvider>,
+        );
+        Self { providers }
+    }
+
+    pub fn summaries(&self) -> Vec<ProviderSummary> {
+        let mut summaries = self
+            .providers
+            .values()
+            .map(|provider| {
+                let metadata = provider.metadata();
+                let capabilities = provider.capabilities();
+                ProviderSummary {
+                    id: metadata.id,
+                    name: metadata.name,
+                    description: metadata.description,
+                    quota_read: capabilities.quota_read,
+                    demo: metadata.demo,
+                }
+            })
+            .collect::<Vec<_>>();
+        summaries.sort_by(|left, right| left.id.cmp(&right.id));
+        summaries
+    }
+
+    pub fn get(&self, id: &str) -> Option<Arc<dyn QuotaProvider>> {
+        self.providers.get(id).cloned()
+    }
+
+    pub fn fetch_demo_overview(&self) -> Result<Overview, PublicError> {
+        self.get("demo")
+            .ok_or_else(|| PublicError {
+                code: "provider_not_found".into(),
+                message: "Demo provider is unavailable".into(),
+            })?
+            .fetch_overview()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn registry_only_exposes_registered_demo_provider() {
+        let registry = ProviderRegistry::demo();
+        let summaries = registry.summaries();
+        assert_eq!(summaries.len(), 1);
+        assert_eq!(summaries[0].id, "demo");
+        assert!(summaries[0].demo);
+        assert!(summaries[0].quota_read);
+        assert!(registry.get("unknown").is_none());
+    }
 
     #[test]
     fn demo_preserves_independent_windows_and_balance() {

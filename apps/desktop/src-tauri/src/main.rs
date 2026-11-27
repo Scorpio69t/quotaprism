@@ -1,10 +1,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use prism_core::{Overview, PublicError, QuotaProvider};
-use prism_providers::DemoProvider;
+use prism_app::AccountService;
+use prism_core::{
+    AccountSummary, AddAccountInput, Overview, ProviderSummary, PublicError, UpdateAccountInput,
+};
+use prism_security::KeyringSecretStore;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
-    Mutex,
+    Arc, Mutex,
 };
 use tauri::{
     menu::{Menu, MenuItem},
@@ -16,7 +19,7 @@ struct PanelState {
     pinned: AtomicBool,
 }
 
-struct DemoState(Mutex<Overview>);
+struct AccountAppState(Mutex<AccountService>);
 
 fn public_error(error: impl std::fmt::Display) -> PublicError {
     PublicError {
@@ -26,19 +29,77 @@ fn public_error(error: impl std::fmt::Display) -> PublicError {
 }
 
 #[tauri::command]
-fn get_overview(state: State<'_, DemoState>) -> Result<Overview, PublicError> {
+fn get_overview(state: State<'_, AccountAppState>) -> Result<Overview, PublicError> {
     state
         .0
         .lock()
-        .map(|overview| overview.clone())
         .map_err(public_error)
+        .and_then(|service| service.get_overview())
 }
 
 #[tauri::command]
 fn refresh(app: tauri::AppHandle) -> Result<(), PublicError> {
-    let updated = DemoProvider.fetch_overview()?;
-    *app.state::<DemoState>().0.lock().map_err(public_error)? = updated;
+    app.state::<AccountAppState>()
+        .0
+        .lock()
+        .map_err(public_error)?
+        .refresh_demo()?;
     app.emit("demo://refresh", ()).map_err(public_error)
+}
+
+#[tauri::command]
+fn list_providers(state: State<'_, AccountAppState>) -> Result<Vec<ProviderSummary>, PublicError> {
+    state
+        .0
+        .lock()
+        .map(|service| service.list_providers())
+        .map_err(public_error)
+}
+
+#[tauri::command]
+fn list_accounts(state: State<'_, AccountAppState>) -> Result<Vec<AccountSummary>, PublicError> {
+    state
+        .0
+        .lock()
+        .map_err(public_error)
+        .and_then(|service| service.list_accounts())
+}
+
+#[tauri::command]
+fn add_account(
+    state: State<'_, AccountAppState>,
+    input: AddAccountInput,
+) -> Result<AccountSummary, PublicError> {
+    state
+        .0
+        .lock()
+        .map_err(public_error)
+        .and_then(|service| service.add_account(input))
+}
+
+#[tauri::command]
+fn update_account(
+    state: State<'_, AccountAppState>,
+    account_id: String,
+    input: UpdateAccountInput,
+) -> Result<AccountSummary, PublicError> {
+    state
+        .0
+        .lock()
+        .map_err(public_error)
+        .and_then(|service| service.update_account(&account_id, input))
+}
+
+#[tauri::command]
+fn remove_account(
+    state: State<'_, AccountAppState>,
+    account_id: String,
+) -> Result<bool, PublicError> {
+    state
+        .0
+        .lock()
+        .map_err(public_error)
+        .and_then(|service| service.remove_account(&account_id))
 }
 
 #[tauri::command]
@@ -151,6 +212,11 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             get_overview,
             refresh,
+            list_providers,
+            list_accounts,
+            add_account,
+            update_account,
+            remove_account,
             set_panel_pinned,
             hide_panel,
             show_dashboard
@@ -173,7 +239,17 @@ fn main() {
             _ => {}
         })
         .setup(|app| {
-            app.manage(DemoState(Mutex::new(DemoProvider.fetch_overview()?)));
+            let data_dir = app
+                .path()
+                .app_data_dir()
+                .map_err(|error| error.to_string())?;
+            std::fs::create_dir_all(&data_dir).map_err(|error| error.to_string())?;
+            let database = data_dir.join("quotaprism.sqlite");
+            let secrets =
+                Arc::new(KeyringSecretStore::new("QuotaPrism").map_err(|error| error.to_string())?);
+            let service =
+                AccountService::open(&database, secrets).map_err(|error| error.to_string())?;
+            app.manage(AccountAppState(Mutex::new(service)));
             let open = MenuItem::with_id(app, "open", "Open dashboard", true, None::<&str>)?;
             let refresh_item =
                 MenuItem::with_id(app, "refresh", "Refresh demo", true, None::<&str>)?;

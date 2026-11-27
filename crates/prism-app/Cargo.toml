@@ -1,0 +1,17 @@
+[package]
+name = "prism-app"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+chrono.workspace = true
+prism-core = { path = "../prism-core" }
+prism-providers = { path = "../prism-providers" }
+prism-security = { path = "../prism-security" }
+prism-storage = { path = "../prism-storage" }
+thiserror.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
