@@ -28,6 +28,11 @@ M0 门槛：可运行的 Demo + 测试 + 文档真实构建命令。不要直接
 - 本切片回归通过：`cargo fmt --all -- --check`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace`（4 个测试）、`pnpm format:check`、`pnpm lint`、`pnpm typecheck`、`pnpm test`（4 个测试）和 `pnpm tauri build --no-bundle`。
 - Windows 生产窗口实测了已用、未知值与展开详情。浏览器中使用模拟 IPC 验证了单选框方向键、排序和 Enter 展开；桌面锁屏期间未能验证原生窗口的键盘操作和实际排序顺序。QP-004 仍未完成，其他平台与无障碍矩阵仍待验。
 
+### QP-005 CI 基线（2026-11-27）
+
+- 新增最小只读 CI，针对 `main` 推送和 Pull Request 验证 Windows 与 macOS。每个平台执行依赖安装、Rust 格式/Clippy/测试、前端格式/lint/typecheck/测试及 Tauri 无安装包构建。
+- CI 不使用真实密钥、不构建签名安装包、不执行网络抓包或发布上传；实际 macOS runner 结果仍需首次 CI 运行确认。
+
 ## M1：可靠核心
 | ID | 工作 | 依赖 | 验收 |
 |---|---|---|---|

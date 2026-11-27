@@ -17,7 +17,7 @@
 - [x] M0 QP-002 领域契约与离线 Demo（展示子集；完整 Provider 契约留待 M1）
 - [ ] M0 QP-003 托盘垂直切片（Windows 基础交互已验证；macOS 和平台边界待验）
 - [ ] M0 QP-004 UI polish（Demo 视图切换、排序和详情已实现；语言、主题、状态及完整无障碍验收待完成）
-- [ ] M0 QP-005 CI
+- [ ] M0 QP-005 CI（Windows/macOS 矩阵工作流已建立；首轮 runner 结果待验）
 - [ ] M1 核心稳定性
 - [ ] M2 真实 Provider 与发布
 
