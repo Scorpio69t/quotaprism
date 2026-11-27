@@ -1,15 +1,15 @@
 use chrono::{DateTime, Utc};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-#[derive(Clone, Debug, Serialize, TS)]
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Overview {
     pub demo: bool,
     pub accounts: Vec<AccountSnapshot>,
 }
 
-#[derive(Clone, Debug, Serialize, TS)]
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AccountSnapshot {
     pub account_id: String,
@@ -18,7 +18,7 @@ pub struct AccountSnapshot {
     pub snapshot: QuotaSnapshot,
 }
 
-#[derive(Clone, Debug, Serialize, TS)]
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct QuotaSnapshot {
     pub observed_at: DateTime<Utc>,
@@ -27,13 +27,13 @@ pub struct QuotaSnapshot {
     pub balances: Vec<Balance>,
 }
 
-#[derive(Clone, Debug, Serialize, TS)]
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum SourceKind {
     Demo,
 }
 
-#[derive(Clone, Debug, Serialize, TS)]
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct QuotaWindow {
     pub window_id: String,
@@ -49,7 +49,7 @@ pub struct QuotaWindow {
     pub next_recovery_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Clone, Debug, Serialize, TS)]
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum Unit {
     Request,
@@ -58,7 +58,7 @@ pub enum Unit {
     Percent,
 }
 
-#[derive(Clone, Debug, Serialize, TS)]
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Period {
     Rolling { seconds: u32 },
@@ -66,7 +66,7 @@ pub enum Period {
     Unknown,
 }
 
-#[derive(Clone, Debug, Serialize, TS)]
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Balance {
     pub amount: String,
