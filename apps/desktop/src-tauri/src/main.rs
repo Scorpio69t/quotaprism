@@ -2,7 +2,8 @@
 
 use prism_app::AccountService;
 use prism_core::{
-    AccountSummary, AddAccountInput, Overview, ProviderSummary, PublicError, UpdateAccountInput,
+    AccountSummary, AddAccountInput, Overview, ProviderSummary, PublicError, RefreshStatus,
+    UpdateAccountInput,
 };
 use prism_security::KeyringSecretStore;
 use std::sync::{
@@ -38,13 +39,43 @@ fn get_overview(state: State<'_, AccountAppState>) -> Result<Overview, PublicErr
 }
 
 #[tauri::command]
+fn get_refresh_status(state: State<'_, AccountAppState>) -> Result<RefreshStatus, PublicError> {
+    state
+        .0
+        .lock()
+        .map(|service| service.refresh_status())
+        .map_err(public_error)
+}
+
+#[tauri::command]
 fn refresh(app: tauri::AppHandle) -> Result<(), PublicError> {
-    app.state::<AccountAppState>()
+    let result = app
+        .state::<AccountAppState>()
         .0
         .lock()
         .map_err(public_error)?
-        .refresh_demo()?;
-    app.emit("demo://refresh", ()).map_err(public_error)
+        .refresh_demo();
+    let status = app
+        .state::<AccountAppState>()
+        .0
+        .lock()
+        .map(|service| service.refresh_status())
+        .unwrap_or_else(|_| RefreshStatus {
+            in_flight: false,
+            last_attempt_at: None,
+            last_success_at: None,
+            retry_after: None,
+            error: Some(PublicError {
+                code: "service_lock_error".into(),
+                message: "Account service became unavailable".into(),
+            }),
+            stale: false,
+            revision: 0,
+        });
+    app.emit("refresh://state", status.clone())
+        .map_err(public_error)?;
+    app.emit("demo://refresh", ()).map_err(public_error)?;
+    result.map(|_| ())
 }
 
 #[tauri::command]
@@ -67,39 +98,54 @@ fn list_accounts(state: State<'_, AccountAppState>) -> Result<Vec<AccountSummary
 
 #[tauri::command]
 fn add_account(
+    app: tauri::AppHandle,
     state: State<'_, AccountAppState>,
     input: AddAccountInput,
 ) -> Result<AccountSummary, PublicError> {
-    state
+    let result = state
         .0
         .lock()
         .map_err(public_error)
-        .and_then(|service| service.add_account(input))
+        .and_then(|service| service.add_account(input));
+    if result.is_ok() {
+        app.emit("accounts://changed", ()).map_err(public_error)?;
+    }
+    result
 }
 
 #[tauri::command]
 fn update_account(
+    app: tauri::AppHandle,
     state: State<'_, AccountAppState>,
     account_id: String,
     input: UpdateAccountInput,
 ) -> Result<AccountSummary, PublicError> {
-    state
+    let result = state
         .0
         .lock()
         .map_err(public_error)
-        .and_then(|service| service.update_account(&account_id, input))
+        .and_then(|service| service.update_account(&account_id, input));
+    if result.is_ok() {
+        app.emit("accounts://changed", ()).map_err(public_error)?;
+    }
+    result
 }
 
 #[tauri::command]
 fn remove_account(
+    app: tauri::AppHandle,
     state: State<'_, AccountAppState>,
     account_id: String,
 ) -> Result<bool, PublicError> {
-    state
+    let result = state
         .0
         .lock()
         .map_err(public_error)
-        .and_then(|service| service.remove_account(&account_id))
+        .and_then(|service| service.remove_account(&account_id));
+    if result.is_ok() {
+        app.emit("accounts://changed", ()).map_err(public_error)?;
+    }
+    result
 }
 
 #[tauri::command]
@@ -212,6 +258,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             get_overview,
             refresh,
+            get_refresh_status,
             list_providers,
             list_accounts,
             add_account,

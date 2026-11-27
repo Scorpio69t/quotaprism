@@ -1,18 +1,139 @@
 use chrono::Utc;
 use prism_core::{
-    AccountSummary, AddAccountInput, Overview, ProviderSummary, PublicError, UpdateAccountInput,
+    AccountSummary, AddAccountInput, Overview, ProviderSummary, PublicError, RefreshStatus,
+    UpdateAccountInput,
 };
 use prism_providers::ProviderRegistry;
 use prism_security::{SecretError, SecretStore};
 use prism_storage::{SqliteStore, StorageError, StoredAccount};
+use std::collections::HashMap;
 use std::path::Path;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+struct NotificationKey {
+    account_id: String,
+    window_id: String,
+    cycle_fingerprint: String,
+    threshold: u8,
+}
+
+pub struct OverviewCache {
+    snapshot: Mutex<Option<Overview>>,
+    refresh_status: Mutex<RefreshStatus>,
+    notifications: Mutex<HashMap<NotificationKey, ()>>,
+    revision: AtomicU64,
+}
+
+impl Default for OverviewCache {
+    fn default() -> Self {
+        Self {
+            snapshot: Mutex::new(None),
+            refresh_status: Mutex::new(RefreshStatus {
+                in_flight: false,
+                last_attempt_at: None,
+                last_success_at: None,
+                retry_after: None,
+                error: None,
+                stale: false,
+                revision: 0,
+            }),
+            notifications: Mutex::new(HashMap::new()),
+            revision: AtomicU64::new(0),
+        }
+    }
+}
+
+impl OverviewCache {
+    pub fn begin_refresh(&self) {
+        let now = Utc::now();
+        let revision = self.revision.fetch_add(1, Ordering::SeqCst) + 1;
+        let mut status = self
+            .refresh_status
+            .lock()
+            .expect("refresh status lock poisoned");
+        status.in_flight = true;
+        status.last_attempt_at = Some(now);
+        status.revision = revision;
+    }
+
+    pub fn record_success(&self, overview: Overview) {
+        let now = Utc::now();
+        let revision = self.revision.fetch_add(1, Ordering::SeqCst) + 1;
+        *self.snapshot.lock().expect("overview cache lock poisoned") = Some(overview);
+        let mut status = self
+            .refresh_status
+            .lock()
+            .expect("refresh status lock poisoned");
+        status.in_flight = false;
+        status.last_success_at = Some(now);
+        status.retry_after = None;
+        status.error = None;
+        status.stale = false;
+        status.revision = revision;
+    }
+
+    pub fn record_failure(&self, error: PublicError) {
+        let now = Utc::now();
+        let revision = self.revision.fetch_add(1, Ordering::SeqCst) + 1;
+        let snapshot_exists = self
+            .snapshot
+            .lock()
+            .expect("overview cache lock poisoned")
+            .is_some();
+        let mut status = self
+            .refresh_status
+            .lock()
+            .expect("refresh status lock poisoned");
+        status.in_flight = false;
+        status.last_attempt_at = Some(now);
+        status.error = Some(error);
+        status.stale = snapshot_exists;
+        status.revision = revision;
+    }
+
+    pub fn snapshot(&self) -> Option<Overview> {
+        self.snapshot
+            .lock()
+            .expect("overview cache lock poisoned")
+            .clone()
+    }
+
+    pub fn status(&self) -> RefreshStatus {
+        self.refresh_status
+            .lock()
+            .expect("refresh status lock poisoned")
+            .clone()
+    }
+
+    pub fn should_notify(
+        &self,
+        account_id: &str,
+        window_id: &str,
+        cycle_fingerprint: &str,
+        threshold: u8,
+    ) -> bool {
+        let key = NotificationKey {
+            account_id: account_id.to_string(),
+            window_id: window_id.to_string(),
+            cycle_fingerprint: cycle_fingerprint.to_string(),
+            threshold,
+        };
+        self.notifications
+            .lock()
+            .expect("notification lock poisoned")
+            .insert(key, ())
+            .is_none()
+    }
+}
 
 pub struct AccountService {
     store: Mutex<SqliteStore>,
     providers: ProviderRegistry,
     secrets: Arc<dyn SecretStore>,
+    cache: OverviewCache,
 }
 
 impl AccountService {
@@ -22,6 +143,7 @@ impl AccountService {
             store: Mutex::new(store),
             providers: ProviderRegistry::demo(),
             secrets,
+            cache: OverviewCache::default(),
         })
     }
 
@@ -31,6 +153,7 @@ impl AccountService {
             store: Mutex::new(store),
             providers: ProviderRegistry::demo(),
             secrets,
+            cache: OverviewCache::default(),
         })
     }
 
@@ -134,7 +257,14 @@ impl AccountService {
     }
 
     pub fn refresh_demo(&self) -> Result<Overview, PublicError> {
-        let overview = self.providers.fetch_demo_overview()?;
+        self.cache.begin_refresh();
+        let overview = match self.providers.fetch_demo_overview() {
+            Ok(overview) => overview,
+            Err(error) => {
+                self.cache.record_failure(error.clone());
+                return Err(error);
+            }
+        };
         let store = self.store.lock().map_err(lock_error)?;
         for account in &overview.accounts {
             if store
@@ -158,11 +288,30 @@ impl AccountService {
                 .save_account_snapshot(account)
                 .map_err(storage_public_error)?;
         }
+        self.cache.record_success(overview.clone());
         Ok(overview)
     }
 
     pub fn get_overview(&self) -> Result<Overview, PublicError> {
-        self.refresh_demo()
+        match self.refresh_demo() {
+            Ok(overview) => Ok(overview),
+            Err(error) => self.cache.snapshot().ok_or(error),
+        }
+    }
+
+    pub fn refresh_status(&self) -> RefreshStatus {
+        self.cache.status()
+    }
+
+    pub fn should_notify(
+        &self,
+        account_id: &str,
+        window_id: &str,
+        cycle_fingerprint: &str,
+        threshold: u8,
+    ) -> bool {
+        self.cache
+            .should_notify(account_id, window_id, cycle_fingerprint, threshold)
     }
 }
 
@@ -202,7 +351,34 @@ fn storage_public_error(error: StorageError) -> PublicError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use prism_core::QuotaProvider;
     use prism_security::{MockSecretStore, SecretRef, SecretValue};
+
+    #[test]
+    fn failed_refresh_retains_last_successful_overview() {
+        let cache = OverviewCache::default();
+        let overview = prism_providers::DemoProvider.fetch_overview().unwrap();
+        cache.record_success(overview.clone());
+        cache.record_failure(PublicError {
+            code: "network_error".into(),
+            message: "offline".into(),
+        });
+        assert!(cache.snapshot().unwrap().demo);
+        let status = cache.status();
+        assert!(status.stale);
+        assert_eq!(status.error.unwrap().code, "network_error");
+        assert!(!status.in_flight);
+    }
+
+    #[test]
+    fn notification_dedup_isolated_by_account_window_cycle_and_threshold() {
+        let cache = OverviewCache::default();
+        assert!(cache.should_notify("a", "window", "cycle-1", 15));
+        assert!(!cache.should_notify("a", "window", "cycle-1", 15));
+        assert!(cache.should_notify("a", "window", "cycle-1", 10));
+        assert!(cache.should_notify("a", "window", "cycle-2", 15));
+        assert!(cache.should_notify("b", "window", "cycle-1", 15));
+    }
 
     #[test]
     fn demo_registry_and_refresh_seed_persistent_demo_accounts() {
@@ -215,6 +391,10 @@ mod tests {
         let overview = service.refresh_demo().unwrap();
         assert_eq!(overview.accounts.len(), 3);
         assert_eq!(service.list_accounts().unwrap().len(), 3);
+        let status = service.refresh_status();
+        assert!(!status.in_flight);
+        assert!(!status.stale);
+        assert!(status.last_success_at.is_some());
     }
 
     #[test]

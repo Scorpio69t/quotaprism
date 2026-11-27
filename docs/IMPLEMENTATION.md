@@ -50,7 +50,7 @@ M0 门槛：可运行的 Demo + 测试 + 文档真实构建命令。不要直接
 | QP-011 | OS keychain、secret ref 与 mock backend | 002 | 真实目标 OS smoke test；失败不落明文；添加/删除/更新恢复（进行中） |
 | QP-012 | 账户应用用例、Provider registry、typed IPC | 010,011 | 多账户隔离；无返回 secret；删除一致性；设置持久化（进行中） |
 | QP-013 | Scheduler、时钟注入、singleflight、并发与退避 | 012 | fake clock 测试 401/429/超时/取消；睡眠恢复限流（进行中） |
-| QP-014 | 缓存与错误 UX、状态事件、通知去重 | 013 | 保留上次成功数据；通知不使用过期快照；事件乱序处理 |
+| QP-014 | 缓存与错误 UX、状态事件、通知去重 | 013 | 保留上次成功数据；通知不使用过期快照；事件乱序处理（进行中） |
 | QP-015 | HTTP 共用层、安全与脱敏诊断 | 011,013 | redirect、body limit、TLS、敏感头日志测试 |
 
 M1 门槛：Mock provider 与本地 fixture 能完成全部主要流程；失败不伪装成零；真实上游调用前先验安全边界。
@@ -80,6 +80,12 @@ M1 门槛：Mock provider 与本地 fixture 能完成全部主要流程；失败
 - 取消、认证、权限、429、网络、超时、schema、不支持、存储和未知错误具有独立状态语义；取消不会执行刷新动作。
 - Fake clock 测试覆盖 401 无重试、429 Retry-After、超时指数退避、取消和同/不同账户并发。
 - 当前为同步内存调度核心，不建立后台 Tokio 任务、持久化 refresh_state、睡眠恢复或真实 HTTP 请求。
+
+### QP-014 缓存与状态切片（2026-11-27）
+
+- 应用进程保留最近成功 Overview；刷新失败标记 stale、保留上次成功快照并暴露脱敏 RefreshStatus revision。
+- Tauri 提供刷新状态查询及 `refresh://state`/`accounts://changed` 事件；前端订阅状态并显示 stale 缓存提示。
+- 通知去重按账户、窗口、周期指纹和阈值隔离，重复键只首次通知；当前不持久化通知状态、不发送真实通知。
 
 ## M2：真实 Provider 与 v0.1 发布
 | ID | 工作 | 依赖 | 验收 |

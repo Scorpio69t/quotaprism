@@ -10,7 +10,12 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
-import type { AccountSnapshot, Overview, QuotaWindow } from "./generated/types";
+import type {
+  AccountSnapshot,
+  Overview,
+  QuotaWindow,
+  RefreshStatus,
+} from "./generated/types";
 import { ipc } from "./ipc";
 
 const panel = new URLSearchParams(window.location.search).has("panel");
@@ -273,6 +278,9 @@ export function App() {
   const [accountSort, setAccountSort] = useState<AccountSort>("default");
   const [language, setLanguage] = useState<Language>("en");
   const [theme, setTheme] = useState<ThemePreference>("system");
+  const [refreshStatus, setRefreshStatus] = useState<RefreshStatus | null>(
+    null,
+  );
   const t = copy[language];
 
   useEffect(() => {
@@ -320,6 +328,39 @@ export function App() {
     return () => {
       active = false;
       unlisten?.();
+    };
+  }, [load]);
+
+  useEffect(() => {
+    let active = true;
+    let disposeStatus: (() => void) | undefined;
+    let disposeAccounts: (() => void) | undefined;
+    Promise.all([
+      ipc.getRefreshStatus(),
+      ipc.onRefreshStatus((event) => {
+        if (active) setRefreshStatus(event.payload);
+      }),
+      ipc.onAccountsChanged(() => {
+        if (active) void load();
+      }),
+    ])
+      .then(([status, statusDispose, accountsDispose]) => {
+        if (active) {
+          setRefreshStatus(status);
+          disposeStatus = statusDispose;
+          disposeAccounts = accountsDispose;
+        } else {
+          statusDispose();
+          accountsDispose();
+        }
+      })
+      .catch((reason: unknown) => {
+        if (active) setError(message(reason));
+      });
+    return () => {
+      active = false;
+      disposeStatus?.();
+      disposeAccounts?.();
     };
   }, [load]);
 
@@ -561,6 +602,17 @@ export function App() {
               )}
             </span>
           </div>
+          {refreshStatus?.stale && refreshStatus.error && (
+            <div className="error-notice stale-notice" role="status">
+              <CircleHelp size={17} />
+              <span>
+                {language === "zh"
+                  ? "正在显示上次成功的数据。"
+                  : "Showing the last successful data."}{" "}
+                {refreshStatus.error.message}
+              </span>
+            </div>
+          )}
           <div className="section-heading">
             <div>
               <h2>
