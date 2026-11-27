@@ -36,6 +36,9 @@ type Copy = {
   periodUnavailable: string;
   simulatedData: string;
   updated: string;
+  emptyTitle: string;
+  emptyDescription: string;
+  reloadDemo: string;
 };
 
 const copy: Record<Language, Copy> = {
@@ -55,6 +58,9 @@ const copy: Record<Language, Copy> = {
     periodUnavailable: "Period unavailable",
     simulatedData: "Simulated data",
     updated: "Updated",
+    emptyTitle: "No accounts in demo",
+    emptyDescription: "Reload the local demo to restore its sample accounts.",
+    reloadDemo: "Reload demo",
   },
   zh: {
     remaining: "剩余",
@@ -72,6 +78,9 @@ const copy: Record<Language, Copy> = {
     periodUnavailable: "周期不可用",
     simulatedData: "模拟数据",
     updated: "更新于",
+    emptyTitle: "演示中没有账户",
+    emptyDescription: "重新加载本地演示以恢复示例账户。",
+    reloadDemo: "重新加载演示",
   },
 };
 
@@ -564,7 +573,7 @@ export function App() {
                   : "All your limits, in one place"}
               </p>
             </div>
-            <div className="section-status">
+            <div className="section-status" role="status" aria-live="polite">
               <span
                 className={
                   lowCount === null
@@ -612,6 +621,22 @@ export function App() {
                 ? "正在加载演示账户…"
                 : "Loading demo accounts…"}
             </p>
+          )}
+          {overview && overview.accounts.length === 0 && !loading && !error && (
+            <div className="empty-state" role="status">
+              <div className="empty-state-mark" aria-hidden="true">
+                ◇
+              </div>
+              <strong>{t.emptyTitle}</strong>
+              <p>{t.emptyDescription}</p>
+              <button
+                className="empty-state-action"
+                onClick={() => void load()}
+              >
+                <RefreshCw size={14} />
+                {t.reloadDemo}
+              </button>
+            </div>
           )}
           {overview && overview.accounts.length > 0 && (
             <div className="quota-controls">

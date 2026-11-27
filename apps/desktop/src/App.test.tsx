@@ -263,6 +263,25 @@ test("switches language and applies the selected theme", async () => {
   expect(document.documentElement).toHaveAttribute("data-theme", "light");
 });
 
+test("shows an actionable empty demo state", async () => {
+  vi.mocked(ipc.getOverview).mockResolvedValue({
+    demo: true,
+    accounts: [],
+  });
+  vi.mocked(ipc.onRefresh).mockResolvedValue(() => {});
+  render(<App />);
+
+  expect(await screen.findByText("No accounts in demo")).toBeInTheDocument();
+  expect(
+    screen.getByText("Reload the local demo to restore its sample accounts."),
+  ).toBeInTheDocument();
+  const callCount = vi.mocked(ipc.getOverview).mock.calls.length;
+  fireEvent.click(screen.getByRole("button", { name: "Reload demo" }));
+  await waitFor(() =>
+    expect(ipc.getOverview).toHaveBeenCalledTimes(callCount + 1),
+  );
+});
+
 test("reports IPC errors rather than inventing demo data", async () => {
   vi.mocked(ipc.getOverview).mockRejectedValue({
     message: "Backend unavailable",
