@@ -80,6 +80,57 @@ pub struct PublicError {
     pub message: String,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderSummary {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub quota_read: bool,
+    pub demo: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountSummary {
+    pub account_id: String,
+    pub provider_id: String,
+    pub provider_name: String,
+    pub alias: String,
+    pub credential_ref: Option<String>,
+    pub enabled: bool,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct AddAccountInput {
+    pub provider_id: String,
+    pub alias: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateAccountInput {
+    pub alias: Option<String>,
+    pub enabled: Option<bool>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderMetadata {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub demo: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderCapabilities {
+    pub quota_read: bool,
+}
+
 impl std::fmt::Display for PublicError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(formatter, "{}: {}", self.code, self.message)
@@ -89,6 +140,8 @@ impl std::fmt::Display for PublicError {
 impl std::error::Error for PublicError {}
 
 pub trait QuotaProvider: Send + Sync {
+    fn metadata(&self) -> ProviderMetadata;
+    fn capabilities(&self) -> ProviderCapabilities;
     fn fetch_overview(&self) -> Result<Overview, PublicError>;
 }
 
@@ -130,6 +183,12 @@ pub fn typescript_definitions() -> String {
         Period::decl(&config),
         Balance::decl(&config),
         PublicError::decl(&config),
+        ProviderSummary::decl(&config),
+        AccountSummary::decl(&config),
+        AddAccountInput::decl(&config),
+        UpdateAccountInput::decl(&config),
+        ProviderMetadata::decl(&config),
+        ProviderCapabilities::decl(&config),
     ]
     .into_iter()
     .map(|definition| format!("export {definition}\n"))

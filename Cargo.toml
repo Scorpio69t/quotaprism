@@ -4,6 +4,7 @@ members = [
     "crates/prism-providers",
     "crates/prism-storage",
     "crates/prism-security",
+    "crates/prism-app",
     "apps/desktop/src-tauri",
 ]
 resolver = "2"
@@ -21,4 +22,5 @@ rusqlite = { version = "0.38", features = ["bundled"] }
 thiserror = "2"
 tempfile = "3"
 keyring = "3"
+uuid = { version = "1", features = ["v4"] }
 ts-rs = { version = "12.0.1", features = ["chrono-impl"] }
