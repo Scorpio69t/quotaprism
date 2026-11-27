@@ -40,8 +40,10 @@ pub struct QuotaWindow {
     pub label: String,
     pub unit: Unit,
     pub period: Period,
+    pub used: Option<String>,
     pub remaining: Option<String>,
     pub limit: Option<String>,
+    pub used_percent: Option<f64>,
     pub remaining_percent: Option<f64>,
     pub reset_at: Option<DateTime<Utc>>,
     pub next_recovery_at: Option<DateTime<Utc>>,
@@ -90,8 +92,8 @@ pub trait QuotaProvider: Send + Sync {
     fn fetch_overview(&self) -> Result<Overview, PublicError>;
 }
 
-pub fn remaining_percent(
-    remaining: Option<u64>,
+pub fn quota_percent(
+    amount: Option<u64>,
     limit: Option<u64>,
     reported: Option<f64>,
 ) -> Result<Option<f64>, PublicError> {
@@ -99,7 +101,9 @@ pub fn remaining_percent(
         code: "invalid_quota".into(),
         message: "Invalid quota values".into(),
     };
-    if matches!(limit, Some(0)) || matches!((remaining, limit), (Some(r), Some(l)) if r > l) {
+    if matches!(limit, Some(0))
+        || matches!((amount, limit), (Some(value), Some(max)) if value > max)
+    {
         return Err(invalid());
     }
     if let Some(percent) = reported {
@@ -108,8 +112,8 @@ pub fn remaining_percent(
         }
         return Ok(Some(percent));
     }
-    Ok(match (remaining, limit) {
-        (Some(remaining), Some(limit)) => Some(remaining as f64 / limit as f64 * 100.0),
+    Ok(match (amount, limit) {
+        (Some(amount), Some(limit)) => Some(amount as f64 / limit as f64 * 100.0),
         _ => None,
     })
 }
@@ -138,19 +142,13 @@ mod tests {
 
     #[test]
     fn unknown_zero_and_invalid_are_distinct() {
-        assert_eq!(remaining_percent(None, Some(100), None).unwrap(), None);
-        assert_eq!(
-            remaining_percent(Some(0), Some(100), None).unwrap(),
-            Some(0.0)
-        );
-        assert_eq!(
-            remaining_percent(None, None, Some(68.0)).unwrap(),
-            Some(68.0)
-        );
-        assert!(remaining_percent(Some(1), Some(0), None).is_err());
-        assert!(remaining_percent(Some(101), Some(100), None).is_err());
-        assert!(remaining_percent(None, None, Some(f64::NAN)).is_err());
-        assert!(remaining_percent(None, None, Some(101.0)).is_err());
+        assert_eq!(quota_percent(None, Some(100), None).unwrap(), None);
+        assert_eq!(quota_percent(Some(0), Some(100), None).unwrap(), Some(0.0));
+        assert_eq!(quota_percent(None, None, Some(68.0)).unwrap(), Some(68.0));
+        assert!(quota_percent(Some(1), Some(0), None).is_err());
+        assert!(quota_percent(Some(101), Some(100), None).is_err());
+        assert!(quota_percent(None, None, Some(f64::NAN)).is_err());
+        assert!(quota_percent(None, None, Some(101.0)).is_err());
     }
 
     #[test]

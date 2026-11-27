@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ArrowDownRight,
   ArrowUpRight,
+  ChevronDown,
   CircleHelp,
   LayoutDashboard,
   Pin,
@@ -13,6 +14,9 @@ import type { AccountSnapshot, Overview, QuotaWindow } from "./generated/types";
 import { ipc } from "./ipc";
 
 const panel = new URLSearchParams(window.location.search).has("panel");
+
+type QuotaView = "remaining" | "used";
+type AccountSort = "default" | "lowest";
 
 function message(error: unknown): string {
   if (
@@ -32,9 +36,23 @@ function localTime(value: string): string {
   }).format(new Date(value));
 }
 
-function QuotaRow({ quota }: { quota: QuotaWindow }) {
-  const percent = quota.remainingPercent;
-  const low = percent !== null && percent <= 15;
+function QuotaRow({ quota, view }: { quota: QuotaWindow; view: QuotaView }) {
+  const percent =
+    view === "remaining" ? quota.remainingPercent : quota.usedPercent;
+  const amount = view === "remaining" ? quota.remaining : quota.used;
+  const low = quota.remainingPercent !== null && quota.remainingPercent <= 15;
+  const unit =
+    quota.unit === "percent"
+      ? "%"
+      : `${quota.unit}${amount === "1" ? "" : "s"}`;
+  const amountLabel =
+    amount !== null
+      ? `${amount}${quota.limit !== null ? ` / ${quota.limit}` : ""} ${unit} ${view}`
+      : percent === null
+        ? `${view === "used" ? "Used" : "Remaining"} amount unavailable`
+        : view === "used"
+          ? "Used"
+          : "Remaining";
   return (
     <div className="quota-row">
       <div className="quota-label">
@@ -47,7 +65,7 @@ function QuotaRow({ quota }: { quota: QuotaWindow }) {
         <div
           className="meter"
           role="progressbar"
-          aria-label={`${quota.label} remaining`}
+          aria-label={`${quota.label} ${view}`}
           aria-valuenow={percent}
           aria-valuemin={0}
           aria-valuemax={100}
@@ -59,13 +77,8 @@ function QuotaRow({ quota }: { quota: QuotaWindow }) {
         </div>
       )}
       <div className="quota-meta">
-        <span>
-          {quota.remaining !== null && quota.limit !== null
-            ? `${quota.remaining} / ${quota.limit} ${quota.unit}s remaining`
-            : percent === null
-              ? "Amount unavailable"
-              : "Remaining"}
-        </span>
+        <span>{amountLabel}</span>
+        {low && <span className="low-label">Low remaining</span>}
         {quota.nextRecoveryAt && (
           <span>Next recovery {localTime(quota.nextRecoveryAt)}</span>
         )}
@@ -75,25 +88,46 @@ function QuotaRow({ quota }: { quota: QuotaWindow }) {
   );
 }
 
-function ProviderCard({ account }: { account: AccountSnapshot }) {
+function ProviderCard({
+  account,
+  view,
+}: {
+  account: AccountSnapshot;
+  view: QuotaView;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const detailsId = `details-${account.accountId}`;
   return (
     <article className="provider-card">
       <div className="provider-header">
-        <div
-          className={`provider-mark mark-${account.accountId.slice(-1)}`}
-          aria-hidden="true"
+        <button
+          className="provider-toggle"
+          aria-expanded={expanded}
+          aria-controls={detailsId}
+          aria-label={`${expanded ? "Hide" : "Show"} details for ${account.providerName}, ${account.alias}`}
+          onClick={() => setExpanded(!expanded)}
         >
-          {account.providerName.charAt(0)}
-        </div>
-        <div className="provider-title">
-          <h3>{account.providerName}</h3>
-          <span>{account.alias}</span>
-        </div>
+          <span
+            className={`provider-mark mark-${account.accountId.slice(-1)}`}
+            aria-hidden="true"
+          >
+            {account.providerName.charAt(0)}
+          </span>
+          <span className="provider-title">
+            <strong>{account.providerName}</strong>
+            <span>{account.alias}</span>
+          </span>
+          <ChevronDown
+            size={16}
+            className={expanded ? "chevron expanded" : "chevron"}
+            aria-hidden="true"
+          />
+        </button>
         <span className="source-tag">Demo</span>
       </div>
       <div className="quota-list">
         {account.snapshot.windows.map((quota) => (
-          <QuotaRow key={quota.windowId} quota={quota} />
+          <QuotaRow key={quota.windowId} quota={quota} view={view} />
         ))}
       </div>
       {account.snapshot.balances.map((balance) => (
@@ -104,6 +138,24 @@ function ProviderCard({ account }: { account: AccountSnapshot }) {
           </strong>
         </div>
       ))}
+      <div className="provider-details" id={detailsId} hidden={!expanded}>
+        <div>
+          <span>Source</span>
+          <strong>Simulated demo</strong>
+        </div>
+        {account.snapshot.windows.map((quota) => (
+          <div key={quota.windowId}>
+            <span>{quota.label}</span>
+            <strong>
+              {quota.period.kind === "rolling"
+                ? `Rolling · ${quota.period.seconds} seconds`
+                : quota.period.kind === "fixed"
+                  ? "Fixed period"
+                  : "Period unavailable"}
+            </strong>
+          </div>
+        ))}
+      </div>
       <div className="card-footer">
         <span>
           <span className="status-dot" /> Simulated data
@@ -119,6 +171,8 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [pinned, setPinned] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [quotaView, setQuotaView] = useState<QuotaView>("remaining");
+  const [accountSort, setAccountSort] = useState<AccountSort>("default");
 
   const load = useCallback(async () => {
     try {
@@ -182,6 +236,25 @@ export function App() {
         ),
       ).length
     : null;
+  const accounts = overview?.accounts.map((account, index) => {
+    const known = account.snapshot.windows
+      .map((quota) => quota.remainingPercent)
+      .filter(
+        (percent): percent is number =>
+          percent !== null &&
+          Number.isFinite(percent) &&
+          percent >= 0 &&
+          percent <= 100,
+      );
+    return { account, index, lowest: known.length ? Math.min(...known) : null };
+  });
+  if (accountSort === "lowest") {
+    accounts?.sort((a, b) => {
+      if (a.lowest === null) return b.lowest === null ? a.index - b.index : 1;
+      if (b.lowest === null) return -1;
+      return a.lowest - b.lowest || a.index - b.index;
+    });
+  }
   return (
     <div className={panel ? "app panel" : "app dashboard"}>
       {!panel && (
@@ -272,8 +345,17 @@ export function App() {
           <div className="demo-notice">
             <Sparkles size={16} />
             <span>
-              <strong>You're exploring with demo data.</strong> These accounts
-              and values are simulated.
+              {panel ? (
+                <>
+                  <strong>Demo data.</strong> All accounts and values are
+                  simulated.
+                </>
+              ) : (
+                <>
+                  <strong>You're exploring with demo data.</strong> These
+                  accounts and values are simulated.
+                </>
+              )}
             </span>
           </div>
           <div className="section-heading">
@@ -315,10 +397,52 @@ export function App() {
               Loading demo accounts…
             </p>
           )}
-          {overview && (
+          {overview && overview.accounts.length > 0 && (
+            <div className="quota-controls">
+              <fieldset className="quota-view">
+                <legend className="sr-only">Quota view</legend>
+                {(["remaining", "used"] as const).map((view) => (
+                  <label key={view}>
+                    <input
+                      type="radio"
+                      name="quota-view"
+                      value={view}
+                      checked={quotaView === view}
+                      onChange={() => setQuotaView(view)}
+                    />
+                    <span>{view === "remaining" ? "Remaining" : "Used"}</span>
+                  </label>
+                ))}
+              </fieldset>
+              <label className="sort-control">
+                <span className="sr-only">Sort accounts</span>
+                <select
+                  value={accountSort}
+                  onChange={(event) => {
+                    if (
+                      event.target.value === "default" ||
+                      event.target.value === "lowest"
+                    ) {
+                      setAccountSort(event.target.value);
+                    } else {
+                      setError("Unsupported sort option");
+                    }
+                  }}
+                >
+                  <option value="default">Default order</option>
+                  <option value="lowest">Lowest remaining</option>
+                </select>
+              </label>
+            </div>
+          )}
+          {accounts && (
             <div className="cards">
-              {overview.accounts.map((account) => (
-                <ProviderCard key={account.accountId} account={account} />
+              {accounts.map(({ account }) => (
+                <ProviderCard
+                  key={account.accountId}
+                  account={account}
+                  view={quotaView}
+                />
               ))}
             </div>
           )}

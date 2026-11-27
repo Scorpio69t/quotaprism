@@ -26,6 +26,17 @@ button:focus-visible {
   outline: 2px solid #c4b5fd;
   outline-offset: 3px;
 }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 .app {
   min-height: 100vh;
   background: var(--bg);
@@ -176,6 +187,8 @@ button:focus-visible {
 }
 .content-scroll {
   overflow: auto;
+  scrollbar-color: #536075 transparent;
+  scrollbar-width: thin;
   padding: 43px 40px 32px;
   max-width: 1100px;
   width: 100%;
@@ -280,6 +293,59 @@ p {
   gap: 7px;
   white-space: nowrap;
 }
+.quota-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.quota-view {
+  display: flex;
+  gap: 2px;
+  margin: 0;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #101721;
+}
+.quota-view label {
+  position: relative;
+  cursor: pointer;
+}
+.quota-view input {
+  position: absolute;
+  opacity: 0;
+}
+.quota-view label span {
+  display: block;
+  padding: 7px 11px;
+  border-radius: 6px;
+  color: #a3afc0;
+  font-size: 11px;
+  font-weight: 600;
+}
+.quota-view input:checked + span {
+  background: #302943;
+  color: #eee8ff;
+}
+.quota-view input:focus-visible + span,
+.sort-control select:focus-visible {
+  outline: 2px solid #c4b5fd;
+  outline-offset: 2px;
+}
+.sort-control select {
+  max-width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
 .cards {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -297,9 +363,33 @@ p {
   align-items: center;
   gap: 11px;
 }
+.provider-toggle {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  gap: 11px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.provider-toggle:hover .chevron {
+  color: var(--text);
+}
+.chevron {
+  flex-shrink: 0;
+  color: #a3afc0;
+}
+.chevron.expanded {
+  transform: rotate(180deg);
+}
 .provider-mark {
   width: 35px;
   height: 35px;
+  flex-shrink: 0;
   border-radius: 10px;
   display: grid;
   place-items: center;
@@ -320,8 +410,8 @@ p {
   flex: 1;
   min-width: 0;
 }
-.provider-title h3 {
-  margin: 0;
+.provider-title strong {
+  display: block;
   color: #f0f3f9;
   font-size: 13px;
 }
@@ -385,6 +475,9 @@ p {
   line-height: 1.45;
   margin-top: 8px;
 }
+.quota-meta .low-label {
+  color: #fbbf24;
+}
 .balance {
   margin-top: 20px;
   display: flex;
@@ -395,6 +488,28 @@ p {
 .balance strong {
   color: #f1f5f9;
   font-variant-numeric: tabular-nums;
+}
+.provider-details {
+  display: grid;
+  gap: 9px;
+  padding-top: 15px;
+  margin-top: 15px;
+  border-top: 1px solid var(--border);
+  color: #a3afc0;
+  font-size: 11px;
+}
+.provider-details[hidden] {
+  display: none;
+}
+.provider-details div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.provider-details strong {
+  color: var(--text);
+  text-align: right;
+  font-weight: 500;
 }
 .card-footer {
   display: flex;
@@ -475,22 +590,25 @@ p {
   font-size: 23px;
 }
 .panel .content-scroll {
-  padding: 23px 18px 20px;
+  padding: 16px 18px 20px;
 }
 .panel h1 {
   font-size: 22px;
-  margin-top: 11px;
+  margin: 8px 0 0;
 }
 .panel .page-heading p {
-  font-size: 12px;
+  display: none;
 }
 .panel .demo-notice {
-  margin: 18px 0 23px;
-  padding: 10px 11px;
+  margin: 12px 0 18px;
+  padding: 8px 11px;
   font-size: 11px;
 }
 .panel .section-heading {
   margin-bottom: 13px;
+}
+.panel .quota-controls {
+  margin-bottom: 12px;
 }
 .panel .cards {
   grid-template-columns: 1fr;
@@ -585,7 +703,10 @@ p {
   .panel-footer {
     background: #fff;
   }
-  .provider-title h3,
+  .content-scroll {
+    scrollbar-color: #aab5c4 transparent;
+  }
+  .provider-title strong,
   .quota-label strong,
   .balance strong {
     color: #172033;
@@ -604,6 +725,9 @@ p {
     background: #a65a06;
   }
   .quota-label strong.warning-text {
+    color: #92400e;
+  }
+  .quota-meta .low-label {
     color: #92400e;
   }
   .provider-card .card-footer {
@@ -659,6 +783,17 @@ p {
     background: #f3f4f8;
     border-color: #e0e4eb;
     color: #526176;
+  }
+  .quota-view {
+    background: #f1f3f7;
+  }
+  .quota-view label span,
+  .provider-details {
+    color: #526176;
+  }
+  .quota-view input:checked + span {
+    background: #e4dafa;
+    color: #552495;
   }
   .open-button {
     background: #efe9fb;
